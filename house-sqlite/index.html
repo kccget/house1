@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>二手房管理平台</title>
+<script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Microsoft YaHei}
+body{background:#f5f7fa;padding:20px}
+.login{max-width:400px;margin:100px auto;background:#fff;padding:30px;border-radius:8px;box-shadow:0 0 10px #ccc}
+.login h2{margin-bottom:20px;text-align:center}
+.login input{width:100%;margin-bottom:15px;padding:10px;border:1px solid #ddd;border-radius:4px}
+.btn{padding:10px 20px;background:#409eff;color:#fff;border:none;border-radius:4px;cursor:pointer}
+.btn-danger{background:#f56c6c}
+.container{max-width:1100px;margin:0 auto;background:#fff;padding:25px;border-radius:8px}
+h2{margin-bottom:20px;color:#333}
+.bar{display:flex;gap:10px;margin-bottom:15px}
+input{padding:8px;border:1px solid #ddd;border-radius:4px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:10px;border:1px solid #ddd}
+th{background:#f8f9fa}
+.page{margin-top:15px;display:flex;gap:10px}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div v-if="!token">
+    <div class="login">
+      <h2>管理员登录</h2>
+      <input v-model="loginForm.username" placeholder="账号">
+      <input v-model="loginForm.password" placeholder="密码" type="password">
+      <button class="btn" @click="login">登录</button>
+    </div>
+  </div>
+
+  <div v-else class="container">
+    <h2>二手房管理平台</h2>
+    <div class="bar">
+      <input v-model="query.keyword" placeholder="搜索标题/地址">
+      <button class="btn" @click="getList">搜索</button>
+      <button class="btn" @click="resetForm">新增</button>
+    </div>
+
+    <div class="form">
+      <input v-model="form.title" placeholder="标题">
+      <input v-model="form.address" placeholder="地址">
+      <input v-model="form.price" placeholder="价格(万)">
+      <input v-model="form.area" placeholder="面积(㎡)">
+      <input v-model="form.owner" placeholder="业主">
+      <input v-model="form.phone" placeholder="电话">
+    </div>
+    <button class="btn" @click="save">保存</button>
+
+    <table>
+      <tr>
+        <th>标题</th><th>地址</th><th>价格</th><th>面积</th><th>业主</th><th>电话</th><th>操作</th>
+      </tr>
+      <tr v-for="h in list">
+        <td>{{h.title}}</td>
+        <td>{{h.address}}</td>
+        <td>{{h.price}}</td>
+        <td>{{h.area}}</td>
+        <td>{{h.owner}}</td>
+        <td>{{h.phone}}</td>
+        <td>
+          <button class="btn" @click="edit(h)">编辑</button>
+          <button class="btn btn-danger" @click="del(h.id)">删除</button>
+        </td>
+      </tr>
+    </table>
+
+    <div class="page">
+      <button class="btn" @click="page--;getList()">上一页</button>
+      <span>第{{page}}页 / 共{{totalPage}}页</span>
+      <button class="btn" @click="page++;getList()">下一页</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp } = Vue
+const axios = window.axios.create({baseURL:'/api'})
+
+createApp({
+  data(){
+    return {
+      token: localStorage.getItem('token'),
+      loginForm:{username:'',password:''},
+      query:{keyword:''},
+      form:{id:'',title:'',address:'',price:'',area:'',owner:'',phone:''},
+      list:[],
+      page:1,
+      total:0,
+      size:5
+    }
+  },
+  computed:{
+    totalPage(){return Math.ceil(this.total/this.size)}
+  },
+  mounted(){
+    if(this.token) this.getList()
+  },
+  methods:{
+    async login(){
+      const {data} = await axios.post('/login',this.loginForm)
+      if(data.code===200){
+        this.token = true
+        localStorage.setItem('token','ok')
+        this.getList()
+      }else alert(data.msg)
+    },
+    async getList(){
+      const {data} = await axios.get('/house',{
+        params:{keyword:this.query.keyword, page:this.page, size:this.size}
+      })
+      this.list = data.content
+      this.total = data.totalElements
+    },
+    async save(){
+      if(this.form.id){
+        await axios.put('/house/'+this.form.id,this.form)
+      }else{
+        await axios.post('/house',this.form)
+      }
+      this.resetForm()
+      this.getList()
+    },
+    edit(h){ this.form = {...h} },
+    resetForm(){
+      this.form = {id:'',title:'',address:'',price:'',area:'',owner:'',phone:''}
+    },
+    async del(id){
+      if(confirm('确定删除？')){
+        await axios.delete('/house/'+id)
+        this.getList()
+      }
+    }
+  }
+}).mount('#app')
+</script>
+</body>
+</html>
